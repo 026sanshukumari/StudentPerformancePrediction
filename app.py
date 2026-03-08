@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import joblib
 import os
-import matplotlib.pyplot as plt
 
 # -----------------------------
 # Load trained model (Cloud-safe path)
@@ -85,15 +84,3 @@ if st.button("Predict"):
     st.subheader(f"📉 Fail Probability: {round(fail_prob, 2)}")
     st.subheader(f"⚠️ Risk Level: {risk_level(fail_prob)}")
     st.subheader(f"💡 Suggested College Action: {intervention_action(fail_prob)}")
-
-    # -----------------------------
-    # Feature Importance Chart
-    # -----------------------------
-    feature_names = ['G1','G2','studytime','failures','absences','famrel','goout','health']
-    importance = pd.Series(model.feature_importances_, index=feature_names).sort_values()
-    st.subheader("📊 Top Factors Affecting Student Performance")
-    plt.figure(figsize=(6,4))
-    importance.plot(kind='barh', color='skyblue')
-    plt.xlabel("Importance")
-    plt.ylabel("Feature")
-    st.pyplot(plt)
