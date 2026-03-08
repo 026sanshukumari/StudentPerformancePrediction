@@ -32,19 +32,18 @@ st.subheader("Predict risk and suggest interventions for students")
 # Input fields in columns
 # -----------------------------
 col1, col2, col3 = st.columns(3)
-
-G1 = col1.number_input("G1 (First Period Grade)", min_value=0, max_value=20, value=10)
-G2 = col2.number_input("G2 (Second Period Grade)", min_value=0, max_value=20, value=10)
-studytime = col3.number_input("Weekly Study Time (1-4)", min_value=1, max_value=4, value=2)
+G1 = col1.number_input("G1 (First Period Grade)", 0, 20, 10)
+G2 = col2.number_input("G2 (Second Period Grade)", 0, 20, 10)
+studytime = col3.number_input("Weekly Study Time (1-4)", 1, 4, 2)
 
 col4, col5, col6 = st.columns(3)
-failures = col4.number_input("Number of Past Failures", min_value=0, max_value=10, value=0)
-absences = col5.number_input("Number of Absences", min_value=0, max_value=100, value=5)
-famrel = col6.number_input("Family Relationship (1-5)", min_value=1, max_value=5, value=3)
+failures = col4.number_input("Number of Past Failures", 0, 10, 0)
+absences = col5.number_input("Number of Absences", 0, 100, 5)
+famrel = col6.number_input("Family Relationship (1-5)", 1, 5, 3)
 
 col7, col8 = st.columns(2)
-goout = col7.number_input("Going Out Frequency (1-5)", min_value=1, max_value=5, value=2)
-health = col8.number_input("Health Status (1-5)", min_value=1, max_value=5, value=3)
+goout = col7.number_input("Going Out Frequency (1-5)", 1, 5, 2)
+health = col8.number_input("Health Status (1-5)", 1, 5, 3)
 
 # -----------------------------
 # Risk & Action functions
@@ -81,19 +80,25 @@ if st.button("Predict"):
     }])
 
     fail_prob = model.predict_proba(student_data)[0][0]
-
-    st.subheader(f"📉 Fail Probability: {round(fail_prob, 2)}")
-    st.subheader(f"⚠️ Risk Level: {risk_level(fail_prob)}")
-    st.subheader(f"💡 Suggested College Action: {intervention_action(fail_prob)}")
+    st.subheader(f"📉 Fail Probability: {round(fail_prob*100,1)}%")
 
     # -----------------------------
-    # Feature Importance Chart
+    # Conditional Risk Display
     # -----------------------------
-    feature_names = ['G1','G2','studytime','failures','absences','famrel','goout','health']
-    importance = pd.Series(model.feature_importances_, index=feature_names).sort_values()
-    st.subheader("📊 Top Factors Affecting Student Performance")
-    plt.figure(figsize=(6,4))
-    importance.plot(kind='barh', color='skyblue')
-    plt.xlabel("Importance")
-    plt.ylabel("Feature")
-    st.pyplot(plt)
+    if fail_prob >= 0.3:  # Only show risk & intervention if moderate/high
+        st.subheader(f"⚠️ Risk Level: {risk_level(fail_prob)}")
+        st.subheader(f"💡 Suggested College Action: {intervention_action(fail_prob)}")
+
+        # -----------------------------
+        # Feature Importance Chart
+        # -----------------------------
+        feature_names = ['G1','G2','studytime','failures','absences','famrel','goout','health']
+        importance = pd.Series(model.feature_importances_, index=feature_names).sort_values()
+        st.subheader("📊 Top Factors Affecting Student Performance")
+        plt.figure(figsize=(6,4))
+        importance.plot(kind='barh', color='skyblue')
+        plt.xlabel("Importance")
+        plt.ylabel("Feature")
+        st.pyplot(plt)
+    else:
+        st.success("✅ Low Risk — No intervention needed")
