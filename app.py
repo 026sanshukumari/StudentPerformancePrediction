@@ -1,65 +1,54 @@
 import streamlit as st
 import pandas as pd
 import joblib
+import os
+import matplotlib.pyplot as plt
 
-# ---------------------------
-# Load Trained Model
-# ---------------------------
-model = joblib.load("student_performance_model.pkl")
+# -----------------------------
+# Load trained model (Cloud-safe path)
+# -----------------------------
+model_path = os.path.join(os.path.dirname(__file__), "student_performance_model.pkl")
+model = joblib.load(model_path)
 
-# ---------------------------
-# Page Config
-# ---------------------------
-st.set_page_config(
-    page_title="🎓 Student Performance Predictor",
-    page_icon="🎓",
-    layout="wide"
-)
+# -----------------------------
+# Sidebar info
+# -----------------------------
+st.sidebar.title("About the App")
+st.sidebar.info("""
+**Student Performance Prediction**
 
-# ---------------------------
-# Title & Description
-# ---------------------------
-st.title("🎓 Student Performance Prediction System")
-st.markdown(
-    "Predict the probability of failing and assess the student's risk level based on grades, study habits, and attendance."
-)
+- Predicts risk of failing using academic grades, study habits, attendance, and health.
+- Model: RandomForestClassifier (robust, avoids overfitting)
+- Output: Risk Level + Suggested College Action
+""")
 
-# ---------------------------
-# Input Section (3 Columns Layout)
-# ---------------------------
-st.subheader("Enter Student Details")
+# -----------------------------
+# Page title
+# -----------------------------
+st.title("🎓 Student Performance Prediction")
+st.subheader("Predict risk and suggest interventions for students")
+
+# -----------------------------
+# Input fields in columns
+# -----------------------------
 col1, col2, col3 = st.columns(3)
 
-with col1:
-    G1 = st.slider("G1 Marks (First Exam)", 0, 20, 10)
-    studytime = st.selectbox(
-        "Weekly Study Time",
-        [1,2,3,4],
-        help="1: <2 hrs, 2: 2-5 hrs, 3: 5-10 hrs, 4: >10 hrs"
-    )
+G1 = col1.number_input("G1 (First Period Grade)", min_value=0, max_value=20, value=10)
+G2 = col2.number_input("G2 (Second Period Grade)", min_value=0, max_value=20, value=10)
+studytime = col3.number_input("Weekly Study Time (1-4)", min_value=1, max_value=4, value=2)
 
-with col2:
-    G2 = st.slider("G2 Marks (Second Exam)", 0, 20, 10)
-    failures = st.number_input("Past Class Failures", 0, 5, 0)
+col4, col5, col6 = st.columns(3)
+failures = col4.number_input("Number of Past Failures", min_value=0, max_value=10, value=0)
+absences = col5.number_input("Number of Absences", min_value=0, max_value=100, value=5)
+famrel = col6.number_input("Family Relationship (1-5)", min_value=1, max_value=5, value=3)
 
-with col3:
-    absences = st.slider("Number of Absences", 0, 50, 5)
-    famrel = st.selectbox("Family Relationship Quality", [1,2,3,4,5])
-    goout = st.selectbox("Going Out With Friends", [1,2,3,4,5])
-    health = st.selectbox("Health Status", [1,2,3,4,5])
+col7, col8 = st.columns(2)
+goout = col7.number_input("Going Out Frequency (1-5)", min_value=1, max_value=5, value=2)
+health = col8.number_input("Health Status (1-5)", min_value=1, max_value=5, value=3)
 
-# ---------------------------
-# Prepare Input
-# ---------------------------
-student_data = pd.DataFrame([{
-    'G1': G1, 'G2': G2, 'studytime': studytime,
-    'failures': failures, 'absences': absences,
-    'famrel': famrel, 'goout': goout, 'health': health
-}])
-
-# ---------------------------
-# Prediction & Display
-# ---------------------------
+# -----------------------------
+# Risk & Action functions
+# -----------------------------
 def risk_level(prob):
     if prob < 0.3:
         return "LOW RISK ✅"
@@ -76,24 +65,35 @@ def intervention_action(prob):
     else:
         return "No intervention needed"
 
+# -----------------------------
+# Prediction button
+# -----------------------------
 if st.button("Predict"):
-    fail_prob = model.predict_proba(student_data)[0][0]
-    
-    # Display with metrics and progress bar
-    st.subheader(f"📉 Fail Probability: {round(fail_prob, 2)}")
-    st.progress(fail_prob)  # progress bar for visual effect
-    st.subheader(f"⚠️ Risk Level: {risk_level(fail_prob)}")
-    st.subheader(f"💡 Suggested Action: {intervention_action(fail_prob)}")
+    student_data = pd.DataFrame([{
+        'G1': G1,
+        'G2': G2,
+        'studytime': studytime,
+        'failures': failures,
+        'absences': absences,
+        'famrel': famrel,
+        'goout': goout,
+        'health': health
+    }])
 
-# ---------------------------
-# Optional: Example Student
-# ---------------------------
-st.markdown("---")
-if st.button("Apply Example Student Data"):
-    st.info("Example student values applied!")
-    example_data = {
-        'G1': 12, 'G2': 11, 'studytime': 2,
-        'failures': 0, 'absences': 6,
-        'famrel': 4, 'goout': 2, 'health': 3
-    }
-    st.write(example_data)
+    fail_prob = model.predict_proba(student_data)[0][0]
+
+    st.subheader(f"📉 Fail Probability: {round(fail_prob, 2)}")
+    st.subheader(f"⚠️ Risk Level: {risk_level(fail_prob)}")
+    st.subheader(f"💡 Suggested College Action: {intervention_action(fail_prob)}")
+
+    # -----------------------------
+    # Feature Importance Chart
+    # -----------------------------
+    feature_names = ['G1','G2','studytime','failures','absences','famrel','goout','health']
+    importance = pd.Series(model.feature_importances_, index=feature_names).sort_values()
+    st.subheader("📊 Top Factors Affecting Student Performance")
+    plt.figure(figsize=(6,4))
+    importance.plot(kind='barh', color='skyblue')
+    plt.xlabel("Importance")
+    plt.ylabel("Feature")
+    st.pyplot(plt)
